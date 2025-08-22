@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimizador de Imágenes con IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .drop-zone-active {
+            border-color: #3b82f6; /* blue-500 */
+            background-color: #374151; /* gray-700 */
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #ffffff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <!-- Encabezado -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Optimizador de Imágenes con IA</h1>
+            <p class="text-gray-400 mt-2 text-lg">Reduce el tamaño y genera contenido para tus imágenes con el poder de la IA.</p>
+        </header>
+
+        <main class="bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8">
+            <!-- Zona de Carga de Archivos -->
+            <div id="upload-container">
+                <div id="drop-zone" class="border-4 border-dashed border-gray-600 rounded-xl p-8 md:p-12 text-center cursor-pointer transition-all duration-300 hover:bg-gray-700">
+                    <svg class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p class="mt-4 text-gray-300"><span class="font-semibold text-blue-400">Haz clic para subir</span> o arrastra y suelta una imagen</p>
+                    <p class="text-xs text-gray-500 mt-1">Soporta JPG, PNG, GIF, WebP</p>
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                </div>
+            </div>
+
+            <!-- Contenedor Principal de la App (oculto por defecto) -->
+            <div id="app-container" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Panel de Controles -->
+                    <div class="bg-gray-900/50 p-6 rounded-xl">
+                        <h2 class="text-2xl font-semibold mb-6 border-b border-gray-700 pb-3">Configuración</h2>
+                        
+                        <div class="mb-6" id="quality-control">
+                            <label for="quality" class="block mb-2 font-medium text-gray-300">Calidad: <span id="quality-value" class="font-bold text-blue-400">0.8</span></label>
+                            <input type="range" id="quality" min="0.1" max="1" step="0.05" value="0.8" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block mb-2 font-medium text-gray-300">Dimensiones Máximas</label>
+                            <div class="flex items-center space-x-4">
+                                <input type="number" id="max-width" placeholder="Ancho" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <span class="text-gray-500">x</span>
+                                <input type="number" id="max-height" placeholder="Alto" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label for="format" class="block mb-2 font-medium text-gray-300">Formato de Salida</label>
+                            <select id="format" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <option value="image/jpeg">JPEG</option>
+                                <option value="image/png">PNG</option>
+                                <option value="image/webp">WebP</option>
+                            </select>
+                        </div>
+                        
+                        <button id="optimize-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 duration-300 flex items-center justify-center">
+                            <svg id="optimize-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span id="optimize-text">Optimizar</span>
+                            <div id="optimizer-loader" class="loader !w-6 !h-6 hidden"></div>
+                        </button>
+                    </div>
+
+                    <!-- Panel de Resultados -->
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-xl font-semibold mb-2 text-gray-400">Original</h3>
+                            <div class="bg-black/20 rounded-lg p-2">
+                                <img id="original-preview" src="" alt="Vista previa original" class="max-w-full max-h-64 mx-auto rounded-md">
+                            </div>
+                            <p id="original-size" class="text-center mt-2 text-sm text-gray-500"></p>
+                        </div>
+
+                        <div id="optimized-section" class="hidden">
+                            <h3 class="text-xl font-semibold mb-2 text-gray-400">Optimizado</h3>
+                            <div class="bg-black/20 rounded-lg p-2">
+                                <img id="optimized-preview" src="" alt="Vista previa optimizada" class="max-w-full max-h-64 mx-auto rounded-md">
+                            </div>
+                            <div class="flex justify-between items-center mt-2 text-sm">
+                                <p id="optimized-size" class="text-green-400 font-semibold"></p>
+                                <p id="reduction-percentage" class="bg-green-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-bold"></p>
+                            </div>
+                            <a id="download-btn" href="#" download="imagen-optimizada.jpg" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 duration-300 flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Descargar Imagen
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                 
+                <!-- Asistente de Contenido con IA -->
+                <div id="ai-assistant" class="mt-8 pt-6 border-t border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-center">✨ Asistente de Contenido con IA</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Generador de Texto ALT -->
+                        <div class="bg-gray-900/50 p-4 rounded-xl">
+                            <button id="generate-alt-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-transform transform hover:scale-105 duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span id="alt-btn-text">Generar Texto Alternativo (ALT)</span>
+                                <div id="alt-loader" class="loader ml-2 hidden"></div>
+                            </button>
+                            <div id="alt-text-result" class="mt-4 bg-gray-700 p-3 rounded-md text-gray-300 hidden min-h-[80px] whitespace-pre-wrap"></div>
+                        </div>
+                        <!-- Sugerencia de Nombres de Archivo -->
+                        <div class="bg-gray-900/50 p-4 rounded-xl">
+                            <button id="generate-filename-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-transform transform hover:scale-105 duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                 <span id="filename-btn-text">Sugerir Nombres de Archivo</span>
+                                 <div id="filename-loader" class="loader ml-2 hidden"></div>
+                            </button>
+                            <div id="filename-result" class="mt-4 bg-gray-700 p-3 rounded-md text-gray-300 hidden min-h-[80px]">
+                                <ul id="filename-list" class="list-disc list-inside space-y-1"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="api-error" class="text-center text-red-400 mt-4 text-sm hidden"></p>
+                </div>
+
+                <button id="reset-btn" class="mt-8 w-full md:w-auto mx-auto block text-gray-400 hover:text-white underline">Cargar otra imagen</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Elementos del DOM ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadContainer = document.getElementById('upload-container');
+        const appContainer = document.getElementById('app-container');
+        
+        const qualitySlider = document.getElementById('quality');
+        const qualityValue = document.getElementById('quality-value');
+        const maxWidthInput = document.getElementById('max-width');
+        const maxHeightInput = document.getElementById('max-height');
+        const formatSelect = document.getElementById('format');
+        const qualityControl = document.getElementById('quality-control');
+        
+        const optimizeBtn = document.getElementById('optimize-btn');
+        const optimizeText = document.getElementById('optimize-text');
+        const optimizerLoader = document.getElementById('optimizer-loader');
+        const optimizeIcon = document.getElementById('optimize-icon');
+
+        const originalPreview = document.getElementById('original-preview');
+        const originalSize = document.getElementById('original-size');
+        
+        const optimizedSection = document.getElementById('optimized-section');
+        const optimizedPreview = document.getElementById('optimized-preview');
+        const optimizedSize = document.getElementById('optimized-size');
+        const reductionPercentage = document.getElementById('reduction-percentage');
+        const downloadBtn = document.getElementById('download-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // --- Elementos de IA de Gemini ---
+        const generateAltBtn = document.getElementById('generate-alt-btn');
+        const altBtnText = document.getElementById('alt-btn-text');
+        const altLoader = document.getElementById('alt-loader');
+        const altTextResult = document.getElementById('alt-text-result');
+
+        const generateFilenameBtn = document.getElementById('generate-filename-btn');
+        const filenameBtnText = document.getElementById('filename-btn-text');
+        const filenameLoader = document.getElementById('filename-loader');
+        const filenameResult = document.getElementById('filename-result');
+        const filenameList = document.getElementById('filename-list');
+        const apiError = document.getElementById('api-error');
+
+        let originalFile = null;
+        let originalFileName = '';
+        let imageBase64 = null;
+
+        // --- Lógica de la Aplicación ---
+
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                alert('Por favor, selecciona un archivo de imagen válido.');
+                return;
+            }
+
+            originalFile = file;
+            originalFileName = file.name;
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                originalPreview.src = e.target.result;
+                uploadContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                
+                // Convertir a Base64 para la API de Gemini
+                fileToBase64(file).then(b64 => {
+                    imageBase64 = b64;
+                });
+
+                const img = new Image();
+                img.onload = () => {
+                    maxWidthInput.value = img.width;
+                    maxHeightInput.value = img.height;
+                    originalSize.textContent = `Tamaño: ${formatBytes(file.size)} | Dimensiones: ${img.width}x${img.height}`;
+                };
+                img.src = e.target.result;
+
+                resetUI();
+            };
+
+            reader.readAsDataURL(file);
+        }
+        
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function optimizeImage() {
+            if (!originalFile) return;
+
+            optimizerLoader.classList.remove('hidden');
+            optimizeText.textContent = 'Optimizando...';
+            optimizeIcon.classList.add('hidden');
+            optimizeBtn.disabled = true;
+
+            const quality = parseFloat(qualitySlider.value);
+            const maxWidth = parseInt(maxWidthInput.value, 10) || originalPreview.naturalWidth;
+            const maxHeight = parseInt(maxHeightInput.value, 10) || originalPreview.naturalHeight;
+            const format = formatSelect.value;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let { width, height } = img;
+                    
+                    const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        const optimizedUrl = URL.createObjectURL(blob);
+                        optimizedPreview.src = optimizedUrl;
+                        downloadBtn.href = optimizedUrl;
+
+                        const fileExtension = format.split('/')[1];
+                        const baseName = originalFileName.substring(0, originalFileName.lastIndexOf('.'));
+                        downloadBtn.download = `${baseName}-optimizado.${fileExtension}`;
+
+                        optimizedSize.textContent = `Tamaño: ${formatBytes(blob.size)} | Dimensiones: ${width}x${height}`;
+                        const reduction = ((originalFile.size - blob.size) / originalFile.size) * 100;
+                        reductionPercentage.textContent = `-${reduction.toFixed(1)}%`;
+                        
+                        optimizedSection.classList.remove('hidden');
+
+                        optimizerLoader.classList.add('hidden');
+                        optimizeText.textContent = 'Optimizar';
+                        optimizeIcon.classList.remove('hidden');
+                        optimizeBtn.disabled = false;
+
+                    }, format, quality);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(originalFile);
+        }
+        
+        // --- Lógica de la API de Gemini ---
+
+        const API_KEY = ""; // El entorno de Canvas proporcionará la clave.
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+        
+        // Convierte un objeto File a una cadena Base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Función genérica para llamar a la API con reintentos
+        async function callGeminiAPI(payload, maxRetries = 3) {
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        throw new Error('Respuesta inesperada de la API.');
+                    }
+                } catch (error) {
+                    attempt++;
+                    if (attempt >= maxRetries) {
+                        throw error; // Lanza el error final después de todos los reintentos
+                    }
+                    const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function generateAltText() {
+            if (!imageBase64) return;
+            setAILoadingState(true, 'alt');
+            
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: "Describe esta imagen para el atributo 'alt' de una etiqueta <img> en HTML. Sé conciso y descriptivo, enfócate en el contenido principal. Responde solo con la descripción." },
+                        { inlineData: { mimeType: originalFile.type, data: imageBase64 } }
+                    ]
+                }]
+            };
+
+            try {
+                const text = await callGeminiAPI(payload);
+                altTextResult.textContent = text;
+                altTextResult.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error al generar texto alternativo:", error);
+                showApiError("No se pudo generar el texto alternativo. Inténtalo de nuevo.");
+            } finally {
+                setAILoadingState(false, 'alt');
+            }
+        }
+
+        async function suggestFilenames() {
+            if (!imageBase64) return;
+            setAILoadingState(true, 'filename');
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: "Analiza esta imagen y sugiere 4 nombres de archivo descriptivos y amigables para SEO. Usa guiones en lugar de espacios, solo letras minúsculas y sin caracteres especiales." },
+                        { inlineData: { mimeType: originalFile.type, data: imageBase64 } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            filenames: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            }
+                        }
+                    }
+                }
+            };
+
+            try {
+                const jsonString = await callGeminiAPI(payload);
+                const parsedJson = JSON.parse(jsonString);
+                
+                filenameList.innerHTML = ''; // Limpiar lista anterior
+                parsedJson.filenames.forEach(name => {
+                    const li = document.createElement('li');
+                    li.textContent = name;
+                    filenameList.appendChild(li);
+                });
+                filenameResult.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error al sugerir nombres de archivo:", error);
+                showApiError("No se pudieron sugerir nombres de archivo. Inténtalo de nuevo.");
+            } finally {
+                setAILoadingState(false, 'filename');
+            }
+        }
+
+        function setAILoadingState(isLoading, type) {
+            const btn = type === 'alt' ? generateAltBtn : generateFilenameBtn;
+            const loader = type === 'alt' ? altLoader : filenameLoader;
+            
+            if (isLoading) {
+                btn.disabled = true;
+                loader.classList.remove('hidden');
+                apiError.classList.add('hidden');
+            } else {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        function showApiError(message) {
+            apiError.textContent = message;
+            apiError.classList.remove('hidden');
+        }
+
+        function resetUI() {
+            optimizedSection.classList.add('hidden');
+            altTextResult.classList.add('hidden');
+            filenameResult.classList.add('hidden');
+            apiError.classList.add('hidden');
+            altTextResult.textContent = '';
+            filenameList.innerHTML = '';
+        }
+
+        // --- Event Listeners ---
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => e.target.files.length && handleFile(e.target.files[0]));
+        ['dragover', 'drop'].forEach(eventName => {
+            window.addEventListener(eventName, e => e.preventDefault());
+        });
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('drop-zone-active'));
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone-active'));
+        dropZone.addEventListener('drop', (e) => {
+            dropZone.classList.remove('drop-zone-active');
+            e.dataTransfer.files.length && handleFile(e.dataTransfer.files[0]);
+        });
+
+        qualitySlider.addEventListener('input', (e) => qualityValue.textContent = parseFloat(e.target.value).toFixed(2));
+        formatSelect.addEventListener('change', (e) => qualityControl.classList.toggle('hidden', e.target.value === 'image/png'));
+        
+        optimizeBtn.addEventListener('click', optimizeImage);
+        generateAltBtn.addEventListener('click', generateAltText);
+        generateFilenameBtn.addEventListener('click', suggestFilenames);
+
+        resetBtn.addEventListener('click', () => {
+            originalFile = null;
+            originalFileName = '';
+            imageBase64 = null;
+            fileInput.value = '';
+            appContainer.classList.add('hidden');
+            uploadContainer.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
